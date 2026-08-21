@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+
+# .streamlit/ içindeki her şeyi yoksay, config.toml hariç
+.streamlit/*
+!.streamlit/config.toml
