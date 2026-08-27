@@ -13,3 +13,6 @@ frontend/dist/
 # Kullanıcının yüklediği belgeler (kaynak dosyalar zaten repo'da)
 data/uploads/
 
+# Video kaydı için kişisel not dosyası - repo'ya dahil değil
+SAMPLEQUES.txt
+
