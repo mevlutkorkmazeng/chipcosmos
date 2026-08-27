@@ -1,7 +1,8 @@
 """
-Hafta 5 - test_queries.py
+Hafta 6 - test_queries.py (backend'e bağlı)
 
-rag.py'deki answer_query() fonksiyonunu 20 soruyla test eder:
+FastAPI backend'inin POST /api/query endpoint'ini HTTP üzerinden çağırarak
+20 soruyla test eder (artık rag.py'yi doğrudan import etmiyor):
   - 15 pasajın her biriyle ilgili, context'te cevabı olan birer soru
   - 5 çeşitli konuda (tarih, coğrafya, biyoloji, matematik, spor),
     pasajlarda hiç geçmeyen, cevaplanamaması gereken soru
@@ -15,11 +16,22 @@ Not: Bu otomatik değerlendirme kaba bir sezgiseldir (anahtar kelime /
 "bilmiyorum" ifadesi arama); kesin doğruluk için cevapları elle de
 okumak gerekir.
 
-Çalıştırma:
+Çalıştırmadan önce backend'in ayakta olması gerekir:
+    cd backend
+    uvicorn main:app --port 8000
+
+Çalıştırma (proje kök dizininden):
     python test_queries.py
 """
 
-from rag import answer_query
+import sys
+
+import requests
+
+API_URL = "http://localhost:8000/api/query"
+# topic=None -> tüm konular (Semiconductors + Space Exploration) arasında arar,
+# eski rag.py tabanlı sürümle aynı davranış.
+TOPIC = None
 
 # (soru, context'te bekleniyorsa doğrulama için anahtar kelimeler; context
 # dışı (cevaplanamaz) sorularda None)
@@ -67,16 +79,31 @@ def looks_like_refusal(answer: str) -> bool:
     return any(phrase in lowered for phrase in REFUSAL_PHRASES)
 
 
+def ask(question: str) -> tuple[str, list[dict]]:
+    """Backend'e HTTP üzerinden soru gönderir; (answer, sources) döner."""
+    response = requests.post(API_URL, json={"question": question, "topic": TOPIC}, timeout=180)
+    response.raise_for_status()
+    data = response.json()
+    return data["answer"], data["sources"]
+
+
 def main():
+    try:
+        requests.get("http://localhost:8000/api/health", timeout=3)
+    except requests.exceptions.ConnectionError:
+        print("HATA: Backend'e ulaşılamıyor (http://localhost:8000).")
+        print("Önce şunu çalıştırın: cd backend && uvicorn main:app --port 8000")
+        sys.exit(1)
+
     results = []  # (no, tür, soru, durum)
 
     for i, (question, keywords) in enumerate(QUESTIONS, start=1):
         print(f"\n[{i}] Soru: {question}")
-        answer, sources = answer_query(question)
+        answer, sources = ask(question)
         print(f"    Cevap: {answer}")
         if sources:
-            top_title, top_score = sources[0]
-            print(f"    En iyi kaynak: {top_title} (score: {top_score:.2f})")
+            top = sources[0]
+            print(f"    En iyi kaynak: {top['title']} (score: {top['score']:.2f})")
 
         if keywords is not None:
             ok = looks_grounded(answer, keywords)

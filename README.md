@@ -127,7 +127,7 @@ This project runs as two **local development servers**, not a hosted website.
 | `frontend/src/components/TelemetryPage.tsx` | Live CPU/RAM/disk usage, uptime, knowledge-base stats |
 | `frontend/src/api/client.ts` | Typed `fetch` wrapper, including SSE stream parsing |
 | `app.py`, `rag.py`, `ingest.py` | **Legacy** Streamlit version — see bottom of this file |
-| `test_queries.py` | Automated test suite (20 questions: 15 answerable, 5 out-of-scope) — written against the legacy `rag.py` API |
+| `test_queries.py` | Automated test suite (20 questions: 15 answerable, 5 out-of-scope) — calls the FastAPI backend over HTTP (`POST /api/query`) |
 
 ---
 
@@ -175,12 +175,15 @@ Then open `http://localhost:5173`.
 An automated test suite (`test_queries.py`) ran 20 questions against the
 assistant: one answerable question per knowledge-base passage (15 total),
 and 5 deliberately out-of-scope questions spanning different topics
-(geography, biology, math, sports, history).
+(geography, biology, math, sports, history). Originally run against
+`rag.py` directly; re-run later over HTTP against the FastAPI backend
+(`POST /api/query`) with identical results.
 
 | Metric | Result |
 |---|---|
 | Answerable questions correctly answered, with correct passage retrieved | 15 / 15 |
 | Out-of-scope questions correctly refused | 5 / 5 |
+| Confidence-threshold note (score < 0.35) attached on all 5 refusals | 5 / 5 |
 
 Retrieval was reliable even on its weakest match: the lowest similarity
 score across all 15 answerable questions was still 0.52, and it still
@@ -270,8 +273,9 @@ knowledge and require an exact refusal phrase fixed this.
 ## Possible next steps
 
 - Expand the knowledge base further and test retrieval at larger scale.
-- Port `test_queries.py` to call the FastAPI `/api/query` endpoint instead
-  of the legacy `rag.py` functions directly.
+- ~~Port `test_queries.py` to call the FastAPI `/api/query` endpoint instead
+  of the legacy `rag.py` functions directly.~~ Done — re-run over HTTP,
+  identical 15/15 + 5/5 result (see Test results above).
 - Try a different small model to compare Turkish-language quality.
 - Optional "enterprise" features seen in a peer project (`vectorvault-enterprise`,
   same internship cohort): streaming responses, per-source similarity
