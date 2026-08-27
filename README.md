@@ -1,5 +1,7 @@
 # ChipCosmos
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A fully offline Retrieval-Augmented Generation (RAG) Q&A assistant, built
 on **Microsoft Foundry Local**. It answers questions across multiple
 knowledge bases (semiconductors, space exploration) by retrieving relevant
