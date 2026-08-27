@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Local RAG Assistant API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="ChipCosmos API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -27,9 +27,9 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-icon">🔬</span>
+          <img src="/chipcosmos-icon.png" alt="ChipCosmos" className="brand-icon" />
           <div>
-            <div className="brand-name">Local RAG</div>
+            <div className="brand-name">ChipCosmos</div>
             <div className="brand-sub">Control Center</div>
           </div>
         </div>

@@ -46,7 +46,10 @@ body {
 }
 
 .brand-icon {
-  font-size: 26px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex-shrink: 0;
 }
 
 .brand-name {

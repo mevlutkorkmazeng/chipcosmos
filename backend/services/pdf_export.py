@@ -52,7 +52,7 @@ def build_pdf(question: str, answer: str, topic: str, sources: list[dict]) -> by
     )
 
     story = []
-    story.append(Paragraph("LOCAL RAG ASSISTANT — INTELLIGENCE REPORT", title_style))
+    story.append(Paragraph("CHIPCOSMOS — INTELLIGENCE REPORT", title_style))
     story.append(HRFlowable(width="100%", color=BRAND_TEAL, thickness=1.2, spaceAfter=10))
 
     meta_rows = [
@@ -95,7 +95,7 @@ def build_pdf(question: str, answer: str, topic: str, sources: list[dict]) -> by
     story.append(HRFlowable(width="100%", color=colors.HexColor("#e2e8f0"), thickness=0.8))
     story.append(
         Paragraph(
-            "Generated locally by Local RAG Assistant — no data left this machine.",
+            "Generated locally by ChipCosmos — no data left this machine.",
             ParagraphStyle("Footer", parent=styles["Normal"], textColor=TEXT_MUTED, fontSize=8, spaceBefore=6),
         )
     )

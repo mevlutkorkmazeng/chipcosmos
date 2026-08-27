@@ -1,4 +1,4 @@
-# Local RAG Assistant
+# ChipCosmos
 
 A fully offline Retrieval-Augmented Generation (RAG) Q&A assistant, built
 on **Microsoft Foundry Local**. It answers questions across multiple

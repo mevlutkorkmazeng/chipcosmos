@@ -140,9 +140,10 @@ export default function ChatPage({ topics, topic, onTopicChange }: ChatPageProps
     <div className="chat-page">
       <div className="chat-header">
         <div>
-          <h1>🔬 Local RAG Assistant</h1>
+          <h1>🚀 ChipCosmos</h1>
           <p className="subtitle">
-            Yerel çalışan, kaynak gösteren bir RAG asistanı — Microsoft Foundry Local ile %100 çevrimdışı.
+            Yarı iletkenler ve uzay araştırmaları için yerel, kaynak gösteren bir RAG asistanı — Microsoft
+            Foundry Local ile %100 çevrimdışı.
           </p>
         </div>
         <label className="topic-select">
