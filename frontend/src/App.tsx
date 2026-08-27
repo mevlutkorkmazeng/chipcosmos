@@ -3,6 +3,7 @@ import ChatPage from "./components/ChatPage";
 import DocumentsPage from "./components/DocumentsPage";
 import TelemetryPage from "./components/TelemetryPage";
 import { getTopics } from "./api/client";
+import type { ChatMessage } from "./types";
 import "./App.css";
 
 type Page = "chat" | "documents" | "telemetry";
@@ -11,6 +12,10 @@ export default function App() {
   const [page, setPage] = useState<Page>("chat");
   const [topics, setTopics] = useState<string[]>([]);
   const [topic, setTopic] = useState<string>("");
+  // Sohbet geçmişi burada, üst seviyede tutuluyor - sayfa değiştirince
+  // (Dokümanlar/Telemetri) ChatPage unmount olsa bile kaybolmasın diye.
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   useEffect(() => {
     getTopics()
@@ -53,7 +58,15 @@ export default function App() {
 
       <main className="main-content">
         {page === "chat" && topics.length > 0 && (
-          <ChatPage topics={topics} topic={topic} onTopicChange={setTopic} />
+          <ChatPage
+            topics={topics}
+            topic={topic}
+            onTopicChange={setTopic}
+            messages={messages}
+            setMessages={setMessages}
+            isStreaming={isStreaming}
+            setIsStreaming={setIsStreaming}
+          />
         )}
         {page === "documents" && <DocumentsPage topics={topics.length > 0 ? topics : ["Semiconductors"]} />}
         {page === "telemetry" && <TelemetryPage />}

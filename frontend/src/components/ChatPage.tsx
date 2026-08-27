@@ -6,6 +6,10 @@ interface ChatPageProps {
   topics: string[];
   topic: string;
   onTopicChange: (topic: string) => void;
+  messages: ChatMessage[];
+  setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
+  isStreaming: boolean;
+  setIsStreaming: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 function SourceList({ sources }: { sources: Source[] }) {
@@ -74,10 +78,16 @@ function ExportPdfButton({
   );
 }
 
-export default function ChatPage({ topics, topic, onTopicChange }: ChatPageProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export default function ChatPage({
+  topics,
+  topic,
+  onTopicChange,
+  messages,
+  setMessages,
+  isStreaming,
+  setIsStreaming,
+}: ChatPageProps) {
   const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
