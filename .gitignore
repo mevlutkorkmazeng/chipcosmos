@@ -13,11 +13,3 @@ frontend/dist/
 # Kullanıcının yüklediği belgeler (kaynak dosyalar zaten repo'da)
 data/uploads/
 
-# Video kaydı için kişisel not/hazırlık dosyaları - teslimatın parçası
-# değil, repo'ya dahil değil
-SAMPLEQUES.txt
-demo-script.md
-video-narration.md
-video-narration-2min.md
-email-draft.txt
-
