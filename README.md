@@ -1,13 +1,20 @@
-# Semiconductor RAG Assistant
+# Local RAG Assistant
 
 A fully offline Retrieval-Augmented Generation (RAG) Q&A assistant, built
-on **Microsoft Foundry Local**. It answers questions about semiconductors
-by retrieving relevant passages from a local knowledge base and grounding
-the LLM's answer in that context — with no internet connection required
-after setup.
+on **Microsoft Foundry Local**. It answers questions across multiple
+knowledge bases (semiconductors, space exploration) by retrieving relevant
+passages and grounding the LLM's answer in that context — with no internet
+connection required after setup.
 
 Built as a one-month learning project following the plan in
 "One-Month Project Plan: Local RAG AI Assistant with Microsoft Foundry Local".
+
+**Current version: FastAPI backend + React (TypeScript) frontend**, with
+streaming responses, per-source similarity/confidence scores, and a
+document-management UI for uploading `.txt/.md/.pdf/.docx` files. The
+original single-file Streamlit version (`app.py`, `rag.py`, `ingest.py`)
+is kept in the repo as the earlier, simpler iteration — see the
+"Legacy Streamlit version" section near the bottom of this file.
 
 ---
 
@@ -30,47 +37,56 @@ retrieval step is never a "black box."
 ## Architecture
 
 ```
- User question (browser, chat UI)
+ User question (browser)
         │
         ▼
-   Streamlit UI (app.py) ── keeps chat history in session state
+  React frontend (frontend/, Vite + TypeScript, localhost:5173)
+        │  fetch() + SSE stream
+        ▼
+  FastAPI backend (backend/, localhost:8000)
+        │
+        ├── GET  /api/topics       -- available knowledge-base topics
+        ├── GET  /api/documents    -- list uploaded/indexed documents
+        ├── POST /api/documents    -- upload + ingest a .txt/.md/.pdf/.docx file
+        ├── POST /api/query        -- one-shot Q&A (answer + sources)
+        └── POST /api/query/stream -- same, streamed token-by-token (SSE)
         │
         ▼
-   get_top_chunks() ── embeds query, compares against stored
-        │               embeddings in rag.db (SQLite, 15 passages),
-        │               returns (title, content, similarity score)
+  services/retrieval.py: get_top_chunks() ── embeds query, compares
+        │   against stored embeddings in rag.db (SQLite: documents +
+        │   vector_chunks tables), returns (title, content, score)
         ▼
-   Top-2 relevant passages + scores
+  services/generation.py: answer_query() / stream_answer() ── sends
+        │   question + passages to phi-3.5-mini via Foundry Local, with
+        │   a system prompt restricting it to the given context and
+        │   citing the passage by title (never by number)
+        ▼
+  Answer (grounded in context, cited, or an explicit refusal) + sources
         │
         ▼
-   answer_query() ── sends question + passages to phi-3.5-mini
-        │              via Foundry Local, with a system prompt that
-        │              restricts it to the given context and asks
-        │              it to cite the passage used
-        ▼
-   Answer (grounded in context, cited, or an explicit refusal)
-        │
-        ▼
-   Displayed in chat + "Retrieved: <passage> (score: X.XX)" shown below
+  Displayed in chat, streaming live, with a "Kullanılan kaynaklar"
+  panel showing each source's title, similarity score, and full text
 ```
 
 Everything — the embedding model, the chat model, and the database — runs
 **on this one machine**. Nothing is sent to the cloud, to Anthropic, or to
-any external service. Foundry Local, Streamlit, and SQLite are all local
-processes with no built-in connection to any AI assistant account.
+any external service. Foundry Local, FastAPI, Vite, and SQLite are all
+local processes with no built-in connection to any AI assistant account.
 
 ---
 
 ## Security & access model
 
-This project runs as a **local development server**, not a hosted website.
+This project runs as two **local development servers**, not a hosted website.
 
-- **Where it runs:** entirely on this computer, as a local process
-  (Streamlit's built-in dev server on port 8501). No cloud hosting, no
-  external server, no deployment anywhere.
-- **Who can reach it:** the app is configured to bind to `localhost`
-  only (`.streamlit/config.toml`), so **only this computer** can open
-  it — not even other devices on the same Wi-Fi network.
+- **Where it runs:** entirely on this computer, as two local processes —
+  the FastAPI backend (`uvicorn`, port 8000) and the Vite dev server
+  serving the React frontend (port 5173). No cloud hosting, no external
+  server, no deployment anywhere.
+- **Who can reach it:** both processes bind to `localhost` only (Vite's
+  default; FastAPI's CORS is restricted to `http://localhost:5173`), so
+  **only this computer** can open it — not even other devices on the
+  same Wi-Fi network.
 - **No internet exposure:** nobody outside this local machine can reach
   the app under any circumstances — no port forwarding, tunnel, or
   public hosting is involved.
@@ -91,37 +107,66 @@ This project runs as a **local development server**, not a hosted website.
 
 ## Project files
 
-| File | Purpose |
+| Path | Purpose |
 |---|---|
+| `sample_docs.md`, `space_exploration_docs.md` | Seed knowledge bases — 15 + 10 passages across two topics |
 | `hello_model.py` | Week 1 — verifies Foundry Local installation with a basic chat completion |
-| `sample_docs.md` | The knowledge base — 15 passages covering semiconductor fundamentals through manufacturing and applications |
-| `embed_test.py` | Week 2 — proves embedding + cosine similarity retrieval works |
-| `ingest.py` | Week 2 — chunks `sample_docs.md`, embeds each passage, stores in `rag.db` |
-| `rag.py` | Week 3-4 — core RAG logic: `get_top_chunks()` (with similarity scores) and `answer_query()` (with source citation) |
-| `app.py` | Week 4 — Streamlit chat interface with history and retrieval transparency |
-| `test_queries.py` | Week 5 — automated test suite (20 questions: 15 answerable, 5 out-of-scope) |
+| `backend/main.py` | FastAPI app: CORS, router registration, `/api/health` |
+| `backend/config.py` | Model aliases, confidence threshold, topics, upload limits |
+| `backend/db.py` | SQLite schema (`documents` + `vector_chunks`) and migration from the old schema |
+| `backend/seed.py` | Loads `sample_docs.md` / `space_exploration_docs.md` into `rag.db` on first run |
+| `backend/services/ingestion.py` | Parses `.txt/.md/.pdf/.docx`, chunks, embeds, writes to SQLite |
+| `backend/services/retrieval.py` | `get_top_chunks()` — cosine similarity search, optional topic filter |
+| `backend/services/generation.py` | `answer_query()` / `stream_answer()` — chat completion + citation prompt |
+| `backend/services/pdf_export.py` | Builds the branded PDF report (reportlab) |
+| `backend/services/sanitize.py` | Query sanitization + prompt-injection redaction |
+| `backend/routers/` | `topics.py`, `documents.py` (list/upload/delete), `query.py` (sync + SSE stream), `export.py` (PDF), `telemetry.py` (system stats) |
+| `frontend/src/App.tsx` | Sidebar navigation (Chat / Documents / Telemetri), topic state |
+| `frontend/src/components/ChatPage.tsx` | Streaming chat UI with expandable per-source score/content panel + PDF export button |
+| `frontend/src/components/DocumentsPage.tsx` | Drag-and-drop upload, document status table |
+| `frontend/src/components/TelemetryPage.tsx` | Live CPU/RAM/disk usage, uptime, knowledge-base stats |
+| `frontend/src/api/client.ts` | Typed `fetch` wrapper, including SSE stream parsing |
+| `app.py`, `rag.py`, `ingest.py` | **Legacy** Streamlit version — see bottom of this file |
+| `test_queries.py` | Automated test suite (20 questions: 15 answerable, 5 out-of-scope) — written against the legacy `rag.py` API |
 
 ---
 
 ## Setup & running (Windows)
+
+Two servers run side by side: the FastAPI backend and the React frontend.
+
+**1. Backend**
 
 ```powershell
 cd local-rag-assistant
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
+pip install -r backend\requirements.txt
 
 # One-time: install the Foundry Local runtime if not already present
 winget install Microsoft.FoundryLocal
 
-# Build the knowledge base (only needs to be run once, or after editing sample_docs.md)
-python ingest.py
+cd backend
 
-# Launch the assistant (bound to localhost only, see Security section above)
-streamlit run app.py
+# One-time (or after editing the seed .md files): build the knowledge base
+python seed.py
+
+# Launch the API (bound to localhost only)
+uvicorn main:app --reload --port 8000
 ```
 
-Then open the URL shown in the terminal (typically `http://localhost:8501`).
+Interactive API docs: `http://localhost:8000/docs`
+
+**2. Frontend** (separate terminal)
+
+```powershell
+cd local-rag-assistant\frontend
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173`.
 
 ---
 
@@ -225,6 +270,60 @@ knowledge and require an exact refusal phrase fixed this.
 ## Possible next steps
 
 - Expand the knowledge base further and test retrieval at larger scale.
-- Add a confidence threshold: if the top similarity score is very low,
-  have the assistant proactively say it's unsure rather than answering.
+- Port `test_queries.py` to call the FastAPI `/api/query` endpoint instead
+  of the legacy `rag.py` functions directly.
 - Try a different small model to compare Turkish-language quality.
+- Optional "enterprise" features seen in a peer project (`vectorvault-enterprise`,
+  same internship cohort): streaming responses, per-source similarity
+  scores, multi-format document upload, a FastAPI+React split, PDF
+  report export, and a live system-telemetry page were all adopted
+  (see below). JWT auth + audit logging and PII redaction were left
+  out, since they require a multi-user deployment scenario this
+  project doesn't have.
+
+### Adopted from the peer project (Faz 4)
+
+- **PDF export** (`POST /api/export/pdf`, "📄 Export PDF" button on
+  each answer) — a branded one-page report with the query, topic,
+  timestamp, the answer, and a References section listing each
+  source's title and similarity score. Built with `reportlab`.
+- **System telemetry page** (`GET /api/telemetry`, "📊 Telemetri" tab)
+  — live CPU/RAM/disk usage bars (color-coded by severity), backend
+  uptime, an "100% Offline" badge, and a knowledge-base breakdown by
+  topic. Polls every 5 seconds. Built with `psutil`.
+- **Input sanitization** (`backend/services/sanitize.py`) — every
+  question passed to `/api/query` and `/api/query/stream` is first
+  run through: Unicode normalization (NFKC), control-character
+  stripping, whitespace collapsing, a 2000-character cap, and
+  redaction of common prompt-injection phrases (e.g. "ignore all
+  previous instructions", "reveal your system prompt", "you are now
+  DAN...") to `[REDACTED]`. Tested with a mixed injection+legitimate
+  question — the injected instruction was redacted and the assistant
+  answered only the legitimate part, still refusing the out-of-scope
+  part per the system prompt. This is a first line of defense, not a
+  complete security solution.
+
+---
+
+## Legacy Streamlit version
+
+Before the FastAPI + React rewrite, this project was a single-file
+Streamlit app. It's kept in the repo (`app.py`, `rag.py`, `ingest.py`,
+`embed_test.py`) as a record of the earlier, simpler iteration — it
+still works standalone, independent of the `backend/`/`frontend/` folders:
+
+```powershell
+cd local-rag-assistant
+venv\Scripts\activate
+python ingest.py        # builds rag.db in the OLD single-table schema
+streamlit run app.py
+```
+
+Note: the legacy `ingest.py` and the new `backend/seed.py` write
+**different, incompatible schemas** to the same `rag.db` file (old:
+one `documents` table with embeddings inline; new: `documents` +
+`vector_chunks`). Running one after the other rebuilds the database
+for that version — `backend/db.py` detects and migrates the old
+schema automatically, but going back from new → old requires
+re-running the legacy `ingest.py`. Don't run both apps against the
+same `rag.db` at the same time.

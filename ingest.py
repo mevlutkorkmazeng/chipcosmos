@@ -1,5 +1,6 @@
 """
-Hafta 2 - Ingest: sample_docs.md pasajlarını embed'leyip SQLite'a yazar.
+Hafta 6 - Ingest: sample_docs.md ve space_exploration_docs.md pasajlarını
+embed'leyip SQLite'a yazar (her biri kendi 'topic' etiketiyle).
 
 embed_test.py'deki parse/embed mantığını kullanır; sonucu ekrana yazdırmak
 yerine rag.db içindeki 'documents' tablosuna kaydeder.
@@ -16,13 +17,19 @@ from pathlib import Path
 from foundry_local_sdk import Configuration, FoundryLocalManager
 
 _HERE = Path(__file__).parent
-DOCS_PATH = str(_HERE / "sample_docs.md")
 DB_PATH = str(_HERE / "rag.db")
 EMBEDDING_MODEL_ALIAS = "qwen3-embedding-0.6b"
 
+# Her kaynak dosya ayrı bir 'topic' etiketiyle rag.db'ye yazılır; app.py
+# kullanıcının seçtiği konuya göre retrieval'i buna göre filtreler.
+SOURCES = [
+    (str(_HERE / "sample_docs.md"), "Semiconductors"),
+    (str(_HERE / "space_exploration_docs.md"), "Space Exploration"),
+]
+
 
 def load_passages(path: str) -> list[dict]:
-    """sample_docs.md dosyasını '## N. Başlık' bölümlerine ayırır."""
+    """Bir '## N. Başlık' formatlı markdown dosyasını pasajlara ayırır."""
     with open(path, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -55,10 +62,14 @@ def get_embedding_model(manager: FoundryLocalManager, alias: str):
 
 
 def create_table(conn: sqlite3.Connection) -> None:
+    # Şema değiştiği için ('topic' kolonu eklendi) her ingest'te tabloyu
+    # baştan oluşturuyoruz; script zaten tüm kaynakları sıfırdan yeniden yazıyor.
+    conn.execute("DROP TABLE IF EXISTS documents")
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS documents (
+        CREATE TABLE documents (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic TEXT NOT NULL,
             title TEXT NOT NULL,
             content TEXT NOT NULL,
             embedding TEXT NOT NULL
@@ -68,9 +79,6 @@ def create_table(conn: sqlite3.Connection) -> None:
 
 
 def main():
-    passages = load_passages(DOCS_PATH)
-    print(f"{len(passages)} pasaj yüklendi ({DOCS_PATH}).")
-
     # hello_model.py / embed_test.py ile aynı mimari.
     FoundryLocalManager.initialize(Configuration(app_name="local-rag-assistant"))
     manager = FoundryLocalManager.instance
@@ -79,30 +87,35 @@ def main():
     print(f"'{model.alias}' modeli indiriliyor/yükleniyor (ilk çalıştırmada indirme yapabilir)...")
     model.download()
     model.load()
-
     embedding_client = model.get_embedding_client()
-
-    print("Pasajlar embed ediliyor...")
-    texts = [f"{p['title']}\n{p['content']}" for p in passages]
-    response = embedding_client.generate_embeddings(texts)
 
     conn = sqlite3.connect(DB_PATH)
     create_table(conn)
-    # Yeniden çalıştırıldığında satırların tekrar tekrar birikmemesi için
-    # tabloyu her seferinde baştan doldur.
-    conn.execute("DELETE FROM documents")
 
-    for passage, item in zip(passages, response.data):
-        embedding_json = json.dumps(item.embedding)
-        conn.execute(
-            "INSERT INTO documents (title, content, embedding) VALUES (?, ?, ?)",
-            (passage["title"], passage["content"], embedding_json),
-        )
+    for docs_path, topic in SOURCES:
+        passages = load_passages(docs_path)
+        print(f"{len(passages)} pasaj yüklendi ({docs_path}) -> konu: '{topic}'.")
+
+        print(f"'{topic}' pasajları embed ediliyor...")
+        texts = [f"{p['title']}\n{p['content']}" for p in passages]
+        response = embedding_client.generate_embeddings(texts)
+
+        for passage, item in zip(passages, response.data):
+            embedding_json = json.dumps(item.embedding)
+            conn.execute(
+                "INSERT INTO documents (topic, title, content, embedding) VALUES (?, ?, ?, ?)",
+                (topic, passage["title"], passage["content"], embedding_json),
+            )
 
     conn.commit()
 
     count = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
     print(f"\n'{DB_PATH}' -> 'documents' tablosuna toplam {count} satır eklendi.")
+    for topic, in conn.execute("SELECT DISTINCT topic FROM documents"):
+        topic_count = conn.execute(
+            "SELECT COUNT(*) FROM documents WHERE topic = ?", (topic,)
+        ).fetchone()[0]
+        print(f"  - '{topic}': {topic_count} pasaj")
 
     conn.close()
 
