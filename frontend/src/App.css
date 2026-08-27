@@ -125,10 +125,11 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-width: 900px;
+  max-width: 1120px;
   margin: 0 auto;
   width: 100%;
   padding: 24px 24px 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -166,6 +167,104 @@ body {
   border: 1px solid var(--border);
   font-size: 13px;
   background: white;
+}
+
+.chat-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+}
+
+.chat-sessions {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid var(--border);
+  padding-right: 12px;
+  overflow-y: auto;
+}
+
+.new-session-btn {
+  background: var(--brand-teal);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.new-session-btn:hover {
+  background: var(--brand-dark-blue);
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.session-item.active {
+  background: #ecfdf5;
+}
+
+.session-select {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-item.active .session-select {
+  color: var(--brand-dark-blue);
+  font-weight: 600;
+}
+
+.session-select:hover {
+  background: #f1f5f9;
+}
+
+.session-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.session-delete:hover {
+  opacity: 1;
+  background: #fef2f2;
+}
+
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-messages {

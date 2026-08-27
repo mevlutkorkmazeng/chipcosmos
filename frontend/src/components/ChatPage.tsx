@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { exportPdf, queryStream } from "../api/client";
-import type { ChatMessage, Source } from "../types";
+import type { ChatMessage, ChatSession, Source } from "../types";
 
 interface ChatPageProps {
   topics: string[];
@@ -10,6 +10,59 @@ interface ChatPageProps {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   isStreaming: boolean;
   setIsStreaming: React.Dispatch<React.SetStateAction<boolean>>;
+  sessions: ChatSession[];
+  activeSessionId: string;
+  onNewSession: () => void;
+  onSelectSession: (id: string) => void;
+  onDeleteSession: (id: string) => void;
+}
+
+function getSessionTitle(session: ChatSession): string {
+  const firstUserMessage = session.messages.find((m) => m.role === "user");
+  if (!firstUserMessage || !firstUserMessage.content.trim()) return "Yeni Sohbet";
+  const text = firstUserMessage.content.trim();
+  return text.length > 36 ? text.slice(0, 36) + "…" : text;
+}
+
+function SessionList({
+  sessions,
+  activeSessionId,
+  onNewSession,
+  onSelectSession,
+  onDeleteSession,
+}: {
+  sessions: ChatSession[];
+  activeSessionId: string;
+  onNewSession: () => void;
+  onSelectSession: (id: string) => void;
+  onDeleteSession: (id: string) => void;
+}) {
+  return (
+    <aside className="chat-sessions">
+      <button className="new-session-btn" onClick={onNewSession}>
+        + Yeni Sohbet
+      </button>
+      <div className="session-list">
+        {sessions.map((s) => (
+          <div key={s.id} className={`session-item ${s.id === activeSessionId ? "active" : ""}`}>
+            <button className="session-select" onClick={() => onSelectSession(s.id)}>
+              {getSessionTitle(s)}
+            </button>
+            <button
+              className="session-delete"
+              title="Sohbeti sil"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteSession(s.id);
+              }}
+            >
+              🗑️
+            </button>
+          </div>
+        ))}
+      </div>
+    </aside>
+  );
 }
 
 function SourceList({ sources }: { sources: Source[] }) {
@@ -86,6 +139,11 @@ export default function ChatPage({
   setMessages,
   isStreaming,
   setIsStreaming,
+  sessions,
+  activeSessionId,
+  onNewSession,
+  onSelectSession,
+  onDeleteSession,
 }: ChatPageProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -168,50 +226,62 @@ export default function ChatPage({
         </label>
       </div>
 
-      <div className="chat-messages">
-        {messages.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-icon">💬</div>
-            <h2>Bugün size nasıl yardımcı olabilirim?</h2>
-            <p>Seçili konu hakkında bir soru sorun — cevaplar sadece indekslenmiş dokümanlara dayanır.</p>
-          </div>
-        )}
+      <div className="chat-body">
+        <SessionList
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onNewSession={onNewSession}
+          onSelectSession={onSelectSession}
+          onDeleteSession={onDeleteSession}
+        />
 
-        {messages.map((msg, i) => (
-          <div key={i} className={`message ${msg.role}`}>
-            <div className="message-role">{msg.role === "user" ? "🧑 Siz" : "🤖 Asistan"}</div>
-            {msg.role === "assistant" && msg.topic && <div className="message-topic">Konu: {msg.topic}</div>}
-            <div className="message-content">
-              {msg.content || (isStreaming && i === messages.length - 1 ? "▍" : "")}
-            </div>
-            {msg.sources && (
-              <div className="message-footer">
-                <SourceList sources={msg.sources} />
-                <ExportPdfButton
-                  question={messages[i - 1]?.content ?? ""}
-                  answer={msg.content}
-                  topic={msg.topic ?? topic}
-                  sources={msg.sources}
-                />
+        <div className="chat-main">
+          <div className="chat-messages">
+            {messages.length === 0 && (
+              <div className="empty-state">
+                <div className="empty-icon">💬</div>
+                <h2>Bugün size nasıl yardımcı olabilirim?</h2>
+                <p>Seçili konu hakkında bir soru sorun — cevaplar sadece indekslenmiş dokümanlara dayanır.</p>
               </div>
             )}
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
 
-      <div className="chat-input-row">
-        <textarea
-          placeholder="Sorunuzu yazın..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={isStreaming}
-        />
-        <button onClick={handleSend} disabled={isStreaming || !input.trim()}>
-          {isStreaming ? "..." : "Gönder"}
-        </button>
+            {messages.map((msg, i) => (
+              <div key={i} className={`message ${msg.role}`}>
+                <div className="message-role">{msg.role === "user" ? "🧑 Siz" : "🤖 Asistan"}</div>
+                {msg.role === "assistant" && msg.topic && <div className="message-topic">Konu: {msg.topic}</div>}
+                <div className="message-content">
+                  {msg.content || (isStreaming && i === messages.length - 1 ? "▍" : "")}
+                </div>
+                {msg.sources && (
+                  <div className="message-footer">
+                    <SourceList sources={msg.sources} />
+                    <ExportPdfButton
+                      question={messages[i - 1]?.content ?? ""}
+                      answer={msg.content}
+                      topic={msg.topic ?? topic}
+                      sources={msg.sources}
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={bottomRef} />
+          </div>
+
+          <div className="chat-input-row">
+            <textarea
+              placeholder="Sorunuzu yazın..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              disabled={isStreaming}
+            />
+            <button onClick={handleSend} disabled={isStreaming || !input.trim()}>
+              {isStreaming ? "..." : "Gönder"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

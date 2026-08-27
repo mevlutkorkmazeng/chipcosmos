@@ -11,6 +11,12 @@ export interface ChatMessage {
   topic?: string;
 }
 
+export interface ChatSession {
+  id: string;
+  createdAt: string;
+  messages: ChatMessage[];
+}
+
 export interface DocumentRow {
   id: number;
   filename: string;
