@@ -8,14 +8,36 @@ import "./App.css";
 
 type Page = "chat" | "documents" | "telemetry";
 
+const MESSAGES_STORAGE_KEY = "chipcosmos:messages";
+
+function loadStoredMessages(): ChatMessage[] {
+  try {
+    const saved = localStorage.getItem(MESSAGES_STORAGE_KEY);
+    return saved ? (JSON.parse(saved) as ChatMessage[]) : [];
+  } catch {
+    // localStorage erişilemez (gizli sekme vb.) veya bozuk veri - boş başla
+    return [];
+  }
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>("chat");
   const [topics, setTopics] = useState<string[]>([]);
   const [topic, setTopic] = useState<string>("");
-  // Sohbet geçmişi burada, üst seviyede tutuluyor - sayfa değiştirince
-  // (Dokümanlar/Telemetri) ChatPage unmount olsa bile kaybolmasın diye.
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Sohbet geçmişi hem üst seviyede tutuluyor (sayfa değiştirince ChatPage
+  // unmount olsa bile kaybolmasın diye) hem de localStorage'a yazılıyor
+  // (F5 / sayfa yenileme / sekme kapat-aç durumunda da kaybolmasın diye).
+  const [messages, setMessages] = useState<ChatMessage[]>(loadStoredMessages);
   const [isStreaming, setIsStreaming] = useState(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // localStorage dolu/erişilemez olabilir - sessizce yoksay, uygulama
+      // çalışmaya devam etsin.
+    }
+  }, [messages]);
 
   useEffect(() => {
     getTopics()
